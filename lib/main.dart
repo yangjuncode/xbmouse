@@ -1,122 +1,252 @@
-import 'package:flutter/material.dart';
+/// XBMouse - Xbox Controller as Mouse for Linux
+/// Main application entry point.
 
-void main() {
-  runApp(const MyApp());
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
+
+import 'theme/app_theme.dart';
+import 'services/uinput_service.dart';
+import 'services/gamepad_service.dart';
+import 'services/mouse_service.dart';
+import 'services/keyboard_service.dart';
+import 'services/config_service.dart';
+import 'services/screen_service.dart';
+import 'services/tray_service.dart';
+import 'pages/home_page.dart';
+import 'pages/mouse_settings_page.dart';
+import 'pages/key_mapping_page.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize window manager
+  await windowManager.ensureInitialized();
+
+  const windowOptions = WindowOptions(
+    size: Size(900, 700),
+    minimumSize: Size(700, 500),
+    center: true,
+    title: 'XBMouse',
+    titleBarStyle: TitleBarStyle.normal,
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.show();
+    await windowManager.focus();
+  });
+
+  // Create services
+  final uinputService = UinputService();
+  final gamepadService = GamepadService();
+  final configService = ConfigService();
+  final screenService = ScreenService(uinputService);
+  final mouseService = MouseService(uinputService, gamepadService, screenService);
+  final keyboardService = KeyboardService(uinputService, gamepadService, screenService);
+  final trayService = TrayService();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: gamepadService),
+        ChangeNotifierProvider.value(value: configService),
+        ChangeNotifierProvider.value(value: screenService),
+        ChangeNotifierProvider.value(value: mouseService),
+        ChangeNotifierProvider.value(value: keyboardService),
+        Provider.value(value: uinputService),
+        Provider.value(value: trayService),
+      ],
+      child: const XBMouseApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class XBMouseApp extends StatefulWidget {
+  const XBMouseApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<XBMouseApp> createState() => _XBMouseAppState();
+}
+
+class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
+  int _currentPageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    final configService = context.read<ConfigService>();
+    final uinputService = context.read<UinputService>();
+    final gamepadService = context.read<GamepadService>();
+    final mouseService = context.read<MouseService>();
+    final keyboardService = context.read<KeyboardService>();
+    final screenService = context.read<ScreenService>();
+    final trayService = context.read<TrayService>();
+
+    // Load config
+    await configService.load();
+
+    // Initialize uinput virtual devices
+    final uinputReady = await uinputService.init();
+    if (!uinputReady) {
+      print('WARNING: Failed to initialize uinput. '
+          'Make sure you have write access to /dev/uinput.');
+    }
+
+    // Get screen info
+    await screenService.refreshScreenInfo();
+
+    // Apply config to services
+    mouseService.updateConfig(configService.mouseConfig);
+    keyboardService.updateMappings(configService.buttonMappings);
+
+    // Start gamepad listening
+    gamepadService.startListening();
+
+    // Auto-start if configured
+    if (configService.appConfig.startEnabled) {
+      mouseService.start();
+      keyboardService.start();
+    }
+
+    // Initialize system tray
+    try {
+      await trayService.init();
+      trayService.onShowWindow = () async {
+        await windowManager.show();
+        await windowManager.focus();
+      };
+      trayService.onToggleEnabled = () {
+        if (mouseService.isEnabled) {
+          mouseService.stop();
+          keyboardService.stop();
+        } else {
+          mouseService.start();
+          keyboardService.start();
+        }
+        trayService.setEnabled(mouseService.isEnabled);
+      };
+      trayService.onQuit = () async {
+        mouseService.stop();
+        keyboardService.stop();
+        gamepadService.stopListening();
+        await uinputService.dispose();
+        trayService.dispose();
+        await windowManager.destroy();
+      };
+    } catch (e) {
+      print('System tray initialization failed: $e');
+    }
+
+    // Auto-minimize if configured
+    if (configService.appConfig.startMinimized) {
+      await windowManager.hide();
+    }
+  }
+
+  @override
+  void onWindowClose() async {
+    // Minimize to tray instead of closing
+    await windowManager.hide();
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+      title: 'XBMouse',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: Row(
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            // Navigation Rail
+            NavigationRail(
+              selectedIndex: _currentPageIndex,
+              onDestinationSelected: (index) {
+                setState(() => _currentPageIndex = index);
+              },
+              labelType: NavigationRailLabelType.all,
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppTheme.xboxGreen.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.gamepad,
+                        color: AppTheme.xboxGreen,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'XBMouse',
+                      style: TextStyle(
+                        color: AppTheme.xboxGreen,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.dashboard_outlined),
+                  selectedIcon: Icon(Icons.dashboard),
+                  label: Text('主页'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.mouse_outlined),
+                  selectedIcon: Icon(Icons.mouse),
+                  label: Text('鼠标'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.keyboard_outlined),
+                  selectedIcon: Icon(Icons.keyboard),
+                  label: Text('按键'),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            // Page content
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: _buildPage(),
+              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
     );
+  }
+
+  Widget _buildPage() {
+    switch (_currentPageIndex) {
+      case 0:
+        return const HomePage();
+      case 1:
+        return const MouseSettingsPage();
+      case 2:
+        return const KeyMappingPage();
+      default:
+        return const HomePage();
+    }
   }
 }
