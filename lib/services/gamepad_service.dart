@@ -1,5 +1,5 @@
-/// Gamepad input service using the gamepads package.
-/// Listens for Xbox controller events and exposes them as streams.
+// Gamepad input service using the gamepads package.
+// Listens for Xbox controller events and exposes them as streams.
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
@@ -7,7 +7,7 @@ import 'package:gamepads/gamepads.dart';
 import '../models/gamepad_state.dart';
 
 class GamepadService extends ChangeNotifier {
-  StreamSubscription<GamepadEvent>? _rawSubscription;
+  StreamSubscription<NormalizedGamepadEvent>? _subscription;
   final GamepadState state = GamepadState();
   bool _listening = false;
 
@@ -20,7 +20,7 @@ class GamepadService extends ChangeNotifier {
     _listening = true;
 
     await _refreshConnectedGamepads();
-    _rawSubscription = Gamepads.events.listen(_handleEvent);
+    _subscription = Gamepads.normalizedEvents.listen(_handleEvent);
     notifyListeners();
   }
 
@@ -38,10 +38,7 @@ class GamepadService extends ChangeNotifier {
 
       final gamepad = connected.first;
       state.connected = true;
-      state.gamepadInfo = GamepadInfo(
-        id: gamepad.id,
-        name: gamepad.name,
-      );
+      state.gamepadInfo = GamepadInfo(id: gamepad.id, name: gamepad.name);
     } catch (_) {
       // Keep waiting for live events if enumeration fails.
     }
@@ -55,14 +52,14 @@ class GamepadService extends ChangeNotifier {
 
   /// Stop listening to gamepad events.
   void stopListening() {
-    _rawSubscription?.cancel();
-    _rawSubscription = null;
+    _subscription?.cancel();
+    _subscription = null;
     _listening = false;
     state.reset();
     notifyListeners();
   }
 
-  void _handleEvent(GamepadEvent event) {
+  void _handleEvent(NormalizedGamepadEvent event) {
     // Ignore our own virtual mouse/keyboard devices
     if (_isVirtualGamepadId(event.gamepadId)) {
       return;
@@ -78,149 +75,93 @@ class GamepadService extends ChangeNotifier {
     }
 
     // Map the key/axis from the event
-    _processEvent(event);
+    handleNormalizedEvent(event);
     notifyListeners();
   }
 
-  void _processEvent(GamepadEvent event) {
-    final key = event.key;
-    final value = event.value;
+  @visibleForTesting
+  void handleNormalizedEvent(NormalizedGamepadEvent event) {
+    final value = event.value.clamp(-1.0, 1.0).toDouble();
+    final axis = event.axis;
+    if (axis != null) {
+      switch (axis) {
+        case GamepadAxis.leftStickX:
+          state.leftStickX = value;
+          break;
+        case GamepadAxis.leftStickY:
+          state.leftStickY = -value;
+          break;
+        case GamepadAxis.rightStickX:
+          state.rightStickX = value;
+          break;
+        case GamepadAxis.rightStickY:
+          state.rightStickY = -value;
+          break;
+        case GamepadAxis.leftTrigger:
+          state.leftTrigger = event.value.clamp(0.0, 1.0).toDouble();
+          break;
+        case GamepadAxis.rightTrigger:
+          state.rightTrigger = event.value.clamp(0.0, 1.0).toDouble();
+          break;
+      }
+      return;
+    }
 
-    // Axes - normalized values from gamepads package
-    // Axis values are typically 0.0 to 1.0 for the raw API
-    switch (key) {
-      // Left stick
-      case 'leftStickX':
-      case '0':  // Raw axis 0
-        state.leftStickX = _normalizeAxis(value);
+    final pressed = event.value > 0.5;
+    switch (event.button) {
+      case GamepadButton.a:
+        state.buttonA = pressed;
         break;
-      case 'leftStickY':
-      case '1':  // Raw axis 1
-        state.leftStickY = _normalizeAxis(value);
+      case GamepadButton.b:
+        state.buttonB = pressed;
         break;
-
-      // Right stick
-      case 'rightStickX':
-      case '2':  // Raw axis 2
-      case '3':  // Some controllers use axis 3
-        state.rightStickX = _normalizeAxis(value);
+      case GamepadButton.x:
+        state.buttonX = pressed;
         break;
-      case 'rightStickY':
-      case '3':  // Raw axis 3
-      case '4':  // Some controllers use axis 4
-        state.rightStickY = _normalizeAxis(value);
+      case GamepadButton.y:
+        state.buttonY = pressed;
         break;
-
-      // Left trigger
-      case 'leftTrigger':
-      case '5':  // Some report as axis 5
-        state.leftTrigger = _normalizeTrigger(value);
+      case GamepadButton.leftBumper:
+        state.leftBumper = pressed;
         break;
-
-      // Right trigger
-      case 'rightTrigger':
-      case '4':  // Some report as axis 4
-        state.rightTrigger = _normalizeTrigger(value);
+      case GamepadButton.rightBumper:
+        state.rightBumper = pressed;
         break;
-
-      // Face buttons
-      case 'a':
-      case '0_button':
-        state.buttonA = value > 0.5;
+      case GamepadButton.back:
+        state.buttonBack = pressed;
         break;
-      case 'b':
-      case '1_button':
-        state.buttonB = value > 0.5;
+      case GamepadButton.start:
+        state.buttonStart = pressed;
         break;
-      case 'x':
-      case '2_button':
-      case '3_button':
-        state.buttonX = value > 0.5;
+      case GamepadButton.leftStick:
+        state.leftStickButton = pressed;
         break;
-      case 'y':
-      case '3_button':
-      case '4_button':
-        state.buttonY = value > 0.5;
+      case GamepadButton.rightStick:
+        state.rightStickButton = pressed;
         break;
-
-      // Bumpers
-      case 'leftBumper':
-      case '4_button':
-      case '6_button':
-        state.leftBumper = value > 0.5;
+      case GamepadButton.dpadUp:
+        state.dpadUp = pressed;
         break;
-      case 'rightBumper':
-      case '5_button':
-      case '7_button':
-        state.rightBumper = value > 0.5;
+      case GamepadButton.dpadDown:
+        state.dpadDown = pressed;
         break;
-
-      // Menu buttons
-      case 'start':
-      case '7_button':
-      case '9_button':
-        state.buttonStart = value > 0.5;
+      case GamepadButton.dpadLeft:
+        state.dpadLeft = pressed;
         break;
-      case 'back':
-      case '6_button':
-      case '8_button':
-        state.buttonBack = value > 0.5;
+      case GamepadButton.dpadRight:
+        state.dpadRight = pressed;
         break;
-
-      // Stick buttons
-      case 'leftStickButton':
-      case '9_button':
-      case '10_button':
-        state.leftStickButton = value > 0.5;
+      case GamepadButton.leftTrigger:
+        state.leftTrigger = pressed ? 1.0 : 0.0;
         break;
-      case 'rightStickButton':
-      case '10_button':
-      case '11_button':
-        state.rightStickButton = value > 0.5;
+      case GamepadButton.rightTrigger:
+        state.rightTrigger = pressed ? 1.0 : 0.0;
         break;
-
-      // D-pad (may come as axes or buttons)
-      case 'dpadUp':
-      case '12_button':
-        state.dpadUp = value > 0.5;
-        break;
-      case 'dpadDown':
-      case '13_button':
-        state.dpadDown = value > 0.5;
-        break;
-      case 'dpadLeft':
-      case '14_button':
-        state.dpadLeft = value > 0.5;
-        break;
-      case 'dpadRight':
-      case '15_button':
-        state.dpadRight = value > 0.5;
-        break;
-
-      // D-pad as axes (HAT)
-      case '6':  // HAT X axis
-        state.dpadLeft = value < -0.5;
-        state.dpadRight = value > 0.5;
-        break;
-      case '7':  // HAT Y axis
-        state.dpadUp = value < -0.5;
-        state.dpadDown = value > 0.5;
+      case GamepadButton.home:
+      case GamepadButton.touchpad:
+      case null:
         break;
     }
-  }
-
-  /// Normalize axis value from gamepads (0.0-1.0 range) to -1.0..1.0
-  double _normalizeAxis(double value) {
-    // gamepads package reports raw values
-    // For axes, the raw value needs mapping depending on the platform
-    // On Linux with evdev, axes are typically 0-65535, normalized by gamepads to 0.0-1.0
-    // We need to convert to -1.0 to 1.0
-    return (value * 2.0 - 1.0).clamp(-1.0, 1.0);
-  }
-
-  /// Normalize trigger from 0.0-1.0 range
-  double _normalizeTrigger(double value) {
-    return value.clamp(0.0, 1.0);
   }
 
   @override
