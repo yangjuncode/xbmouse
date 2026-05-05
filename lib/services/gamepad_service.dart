@@ -15,12 +15,42 @@ class GamepadService extends ChangeNotifier {
   bool get isConnected => state.connected;
 
   /// Start listening to gamepad events.
-  void startListening() {
+  Future<void> startListening() async {
     if (_listening) return;
     _listening = true;
 
+    await _refreshConnectedGamepads();
     _rawSubscription = Gamepads.events.listen(_handleEvent);
     notifyListeners();
+  }
+
+  Future<void> _refreshConnectedGamepads() async {
+    try {
+      final gamepads = await Gamepads.list();
+      final connected = gamepads.where((gamepad) {
+        return !_isVirtualGamepadId(gamepad.id) &&
+            !_isVirtualGamepadId(gamepad.name);
+      }).toList();
+
+      if (connected.isEmpty) {
+        return;
+      }
+
+      final gamepad = connected.first;
+      state.connected = true;
+      state.gamepadInfo = GamepadInfo(
+        id: gamepad.id,
+        name: gamepad.name,
+      );
+    } catch (_) {
+      // Keep waiting for live events if enumeration fails.
+    }
+  }
+
+  bool _isVirtualGamepadId(String value) {
+    return value.contains('1234:5678') ||
+        value.contains('1234:5679') ||
+        value.contains('XBMouse');
   }
 
   /// Stop listening to gamepad events.
@@ -34,9 +64,7 @@ class GamepadService extends ChangeNotifier {
 
   void _handleEvent(GamepadEvent event) {
     // Ignore our own virtual mouse/keyboard devices
-    if (event.gamepadId.contains('1234:5678') || 
-        event.gamepadId.contains('1234:5679') ||
-        event.gamepadId.contains('XBMouse')) {
+    if (_isVirtualGamepadId(event.gamepadId)) {
       return;
     }
 

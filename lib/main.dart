@@ -105,7 +105,7 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
     keyboardService.updateMappings(configService.buttonMappings);
 
     // Start gamepad listening
-    gamepadService.startListening();
+    await gamepadService.startListening();
 
     // Auto-start if configured
     if (configService.appConfig.startEnabled) {

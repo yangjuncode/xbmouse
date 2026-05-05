@@ -12,7 +12,6 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
-#include <X11/extensions/Xrandr.h>
 #endif
 
 #define UINPUT_CHANNEL "com.xbmouse/uinput"
@@ -24,6 +23,9 @@ static int keyboard_fd = -1;
 // Screen dimensions for absolute positioning
 static int total_screen_width = 1920;
 static int total_screen_height = 1080;
+#ifdef GDK_WINDOWING_X11
+static Display* x11_display = nullptr;
+#endif
 
 static void emit_event(int fd, int type, int code, int val) {
   struct input_event ie;
@@ -38,6 +40,25 @@ static void emit_event(int fd, int type, int code, int val) {
 
 static void emit_syn(int fd) {
   emit_event(fd, EV_SYN, SYN_REPORT, 0);
+}
+
+static void ensure_x11_display() {
+#ifdef GDK_WINDOWING_X11
+  if (x11_display == nullptr) {
+    x11_display = XOpenDisplay(nullptr);
+  }
+#endif
+}
+
+static void move_cursor_absolute(int x, int y) {
+#ifdef GDK_WINDOWING_X11
+  ensure_x11_display();
+  if (x11_display != nullptr) {
+    Window root = DefaultRootWindow(x11_display);
+    XWarpPointer(x11_display, None, root, 0, 0, 0, 0, x, y);
+    XFlush(x11_display);
+  }
+#endif
 }
 
 static int create_virtual_mouse() {
@@ -61,34 +82,12 @@ static int create_virtual_mouse() {
   // Set as a pointer device to avoid being detected as a joystick
   ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_POINTER);
 
-  // Enable absolute movement events (for cross-screen jumps)
-  ioctl(fd, UI_SET_EVBIT, EV_ABS);
-  ioctl(fd, UI_SET_ABSBIT, ABS_X);
-  ioctl(fd, UI_SET_ABSBIT, ABS_Y);
-
   struct uinput_setup usetup;
   memset(&usetup, 0, sizeof(usetup));
   usetup.id.bustype = BUS_USB;
   usetup.id.vendor  = 0x1234;
   usetup.id.product = 0x5678;
   snprintf(usetup.name, UINPUT_MAX_NAME_SIZE, "XBMouse Virtual Mouse");
-
-  // Configure absolute axis ranges
-  struct uinput_abs_setup abs_setup_x;
-  memset(&abs_setup_x, 0, sizeof(abs_setup_x));
-  abs_setup_x.code = ABS_X;
-  abs_setup_x.absinfo.minimum = 0;
-  abs_setup_x.absinfo.maximum = total_screen_width - 1;
-  abs_setup_x.absinfo.resolution = 1;
-  ioctl(fd, UI_ABS_SETUP, &abs_setup_x);
-
-  struct uinput_abs_setup abs_setup_y;
-  memset(&abs_setup_y, 0, sizeof(abs_setup_y));
-  abs_setup_y.code = ABS_Y;
-  abs_setup_y.absinfo.minimum = 0;
-  abs_setup_y.absinfo.maximum = total_screen_height - 1;
-  abs_setup_y.absinfo.resolution = 1;
-  ioctl(fd, UI_ABS_SETUP, &abs_setup_y);
 
   ioctl(fd, UI_DEV_SETUP, &usetup);
 
@@ -238,13 +237,10 @@ static void method_call_handler(FlMethodChannel* channel,
     }
 
   } else if (strcmp(method, "moveMouseAbsolute") == 0) {
-    if (mouse_fd >= 0 && args != nullptr &&
-        fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+    if (args != nullptr && fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
       int x = fl_value_get_int(fl_value_lookup_string(args, "x"));
       int y = fl_value_get_int(fl_value_lookup_string(args, "y"));
-      emit_event(mouse_fd, EV_ABS, ABS_X, x);
-      emit_event(mouse_fd, EV_ABS, ABS_Y, y);
-      emit_syn(mouse_fd);
+      move_cursor_absolute(x, y);
       response = FL_METHOD_RESPONSE(
           fl_method_success_response_new(fl_value_new_bool(true)));
     } else {
