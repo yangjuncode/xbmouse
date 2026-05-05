@@ -52,16 +52,19 @@ static int create_virtual_mouse() {
   ioctl(fd, UI_SET_RELBIT, REL_X);
   ioctl(fd, UI_SET_RELBIT, REL_Y);
 
-  // Enable absolute movement events (for cross-screen jumps)
-  ioctl(fd, UI_SET_EVBIT, EV_ABS);
-  ioctl(fd, UI_SET_ABSBIT, ABS_X);
-  ioctl(fd, UI_SET_ABSBIT, ABS_Y);
-
   // Enable key events (mouse buttons)
   ioctl(fd, UI_SET_EVBIT, EV_KEY);
   ioctl(fd, UI_SET_KEYBIT, BTN_LEFT);
   ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT);
   ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE);
+
+  // Set as a pointer device to avoid being detected as a joystick
+  ioctl(fd, UI_SET_PROPBIT, INPUT_PROP_POINTER);
+
+  // Enable absolute movement events (for cross-screen jumps)
+  ioctl(fd, UI_SET_EVBIT, EV_ABS);
+  ioctl(fd, UI_SET_ABSBIT, ABS_X);
+  ioctl(fd, UI_SET_ABSBIT, ABS_Y);
 
   struct uinput_setup usetup;
   memset(&usetup, 0, sizeof(usetup));

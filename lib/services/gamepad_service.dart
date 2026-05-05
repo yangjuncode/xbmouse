@@ -33,6 +33,13 @@ class GamepadService extends ChangeNotifier {
   }
 
   void _handleEvent(GamepadEvent event) {
+    // Ignore our own virtual mouse/keyboard devices
+    if (event.gamepadId.contains('1234:5678') || 
+        event.gamepadId.contains('1234:5679') ||
+        event.gamepadId.contains('XBMouse')) {
+      return;
+    }
+
     // Mark as connected when we receive any event
     if (!state.connected) {
       state.connected = true;
