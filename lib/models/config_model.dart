@@ -109,8 +109,8 @@ class ButtonMappings {
     this.dpadDown = 'Next',
     this.dpadLeft = '@SWITCH_SCREEN',
     this.dpadRight = '',
-    this.lt = 'BTN_RIGHT',
-    this.rt = 'BTN_LEFT',
+    this.lt = 'BTN_LEFT',
+    this.rt = 'BTN_RIGHT',
   });
 
   /// Get mapping by gamepad button name
@@ -194,8 +194,8 @@ class ButtonMappings {
       dpadDown: dpad?['down'] as String? ?? 'Next',
       dpadLeft: dpad?['left'] as String? ?? '@SWITCH_SCREEN',
       dpadRight: dpad?['right'] as String? ?? '',
-      lt: triggers?['lt'] as String? ?? 'BTN_RIGHT',
-      rt: triggers?['rt'] as String? ?? 'BTN_LEFT',
+      lt: triggers?['lt'] as String? ?? 'BTN_LEFT',
+      rt: triggers?['rt'] as String? ?? 'BTN_RIGHT',
     );
   }
 
