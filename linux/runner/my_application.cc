@@ -4,9 +4,28 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#include <limits.h>
+#include <unistd.h>
 
 #include "flutter/generated_plugin_registrant.h"
 #include "uinput_plugin.h"
+
+static void set_window_icon(GtkWindow* window) {
+  gchar exe_path[PATH_MAX] = {0};
+  const ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (len <= 0) {
+    return;
+  }
+  exe_path[len] = '\0';
+
+  g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
+  g_autofree gchar* icon_path = g_build_filename(
+      exe_dir, "data", "flutter_assets", "assets", "icon", "app_icon.png",
+      nullptr);
+  if (g_file_test(icon_path, G_FILE_TEST_EXISTS)) {
+    gtk_window_set_icon_from_file(window, icon_path, nullptr);
+  }
+}
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -54,6 +73,7 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+  set_window_icon(window);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

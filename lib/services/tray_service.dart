@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:tray_manager/tray_manager.dart';
-import 'package:window_manager/window_manager.dart';
 
 class TrayService with TrayListener {
   VoidCallback? onShowWindow;
@@ -29,9 +28,7 @@ class TrayService with TrayListener {
   }
 
   Future<void> _updateTrayIcon() async {
-    // Use a built-in icon or a simple one
-    // For now we'll set the title - icon can be added later
-    await trayManager.setIcon('assets/icon/tray_icon.png');
+    await trayManager.setIcon('assets/icon/app_icon.png');
     await trayManager.setToolTip('XBMouse - Xbox Controller as Mouse');
   }
 

@@ -183,14 +183,13 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
                     Container(
                       width: 40,
                       height: 40,
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: AppTheme.xboxGreen.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.gamepad,
-                        color: AppTheme.xboxGreen,
-                        size: 22,
+                      child: Image.asset(
+                        'assets/icon/app_icon.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                     const SizedBox(height: 4),
