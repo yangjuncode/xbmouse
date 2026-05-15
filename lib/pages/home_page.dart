@@ -10,13 +10,15 @@ import '../services/screen_service.dart';
 import '../theme/app_theme.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final ScrollController? scrollController;
+  const HomePage({super.key, this.scrollController});
 
   @override
   Widget build(BuildContext context) {
     return Consumer4<GamepadService, MouseService, KeyboardService, ConfigService>(
       builder: (context, gamepad, mouse, keyboard, config, _) {
         return SingleChildScrollView(
+          controller: scrollController,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

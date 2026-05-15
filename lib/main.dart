@@ -2,6 +2,7 @@
 /// Main application entry point.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -70,6 +71,14 @@ class XBMouseApp extends StatefulWidget {
 
 class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
   int _currentPageIndex = 0;
+
+  // One ScrollController per page for PageUp/PageDown support
+  final List<ScrollController> _scrollControllers = [
+    ScrollController(),
+    ScrollController(),
+    ScrollController(),
+  ];
+  final FocusNode _shellFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -157,7 +166,32 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
   @override
   void dispose() {
     windowManager.removeListener(this);
+    for (final ctrl in _scrollControllers) {
+      ctrl.dispose();
+    }
+    _shellFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Handle PageUp / PageDown to scroll the active page.
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final ctrl = _scrollControllers[_currentPageIndex];
+    const double step = 400.0;
+    if (event.logicalKey == LogicalKeyboardKey.pageDown) {
+      final target = (ctrl.offset + step).clamp(0.0, ctrl.position.maxScrollExtent);
+      ctrl.animateTo(target,
+          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      return KeyEventResult.handled;
+    } else if (event.logicalKey == LogicalKeyboardKey.pageUp) {
+      final target = (ctrl.offset - step).clamp(0.0, ctrl.position.maxScrollExtent);
+      ctrl.animateTo(target,
+          duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -225,9 +259,14 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
             const VerticalDivider(width: 1, thickness: 1),
             // Page content
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _buildPage(),
+              child: Focus(
+                focusNode: _shellFocusNode,
+                autofocus: true,
+                onKeyEvent: _handleKeyEvent,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: _buildPage(),
+                ),
               ),
             ),
           ],
@@ -239,13 +278,13 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
   Widget _buildPage() {
     switch (_currentPageIndex) {
       case 0:
-        return const HomePage();
+        return HomePage(scrollController: _scrollControllers[0]);
       case 1:
-        return const MouseSettingsPage();
+        return MouseSettingsPage(scrollController: _scrollControllers[1]);
       case 2:
-        return const KeyMappingPage();
+        return KeyMappingPage(scrollController: _scrollControllers[2]);
       default:
-        return const HomePage();
+        return HomePage(scrollController: _scrollControllers[0]);
     }
   }
 }

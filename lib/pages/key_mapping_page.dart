@@ -10,7 +10,8 @@ import '../models/config_model.dart';
 import '../theme/app_theme.dart';
 
 class KeyMappingPage extends StatelessWidget {
-  const KeyMappingPage({super.key});
+  final ScrollController? scrollController;
+  const KeyMappingPage({super.key, this.scrollController});
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +20,7 @@ class KeyMappingPage extends StatelessWidget {
         final entries = config.buttonMappings.toEntryList();
 
         return SingleChildScrollView(
+          controller: scrollController,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
