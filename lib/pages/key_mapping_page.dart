@@ -19,9 +19,12 @@ class KeyMappingPage extends StatelessWidget {
       builder: (context, config, _) {
         final entries = config.buttonMappings.toEntryList();
 
-        return SingleChildScrollView(
+        return Scrollbar(
           controller: scrollController,
-          padding: const EdgeInsets.all(24),
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -84,6 +87,7 @@ class KeyMappingPage extends StatelessWidget {
                 config),
             ],
           ),
+        ),
         );
       },
     );

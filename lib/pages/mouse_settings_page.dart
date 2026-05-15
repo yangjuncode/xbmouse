@@ -17,9 +17,12 @@ class MouseSettingsPage extends StatelessWidget {
       builder: (context, config, mouse, _) {
         final mouseConfig = config.mouseConfig;
 
-        return SingleChildScrollView(
+        return Scrollbar(
           controller: scrollController,
-          padding: const EdgeInsets.all(24),
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -147,6 +150,7 @@ class MouseSettingsPage extends StatelessWidget {
               _buildAccelerationPreview(context, mouseConfig),
             ],
           ),
+        ),
         );
       },
     );

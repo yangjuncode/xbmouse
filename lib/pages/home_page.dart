@@ -17,20 +17,24 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer4<GamepadService, MouseService, KeyboardService, ConfigService>(
       builder: (context, gamepad, mouse, keyboard, config, _) {
-        return SingleChildScrollView(
+        return Scrollbar(
           controller: scrollController,
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStatusCard(context, gamepad, mouse, keyboard),
-              const SizedBox(height: 24),
-              _buildControlCard(context, mouse, keyboard, config),
-              const SizedBox(height: 24),
-              _buildGamepadVisualizer(context, gamepad),
-              const SizedBox(height: 24),
-              _buildScreenInfoCard(context),
-            ],
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStatusCard(context, gamepad, mouse, keyboard),
+                const SizedBox(height: 24),
+                _buildControlCard(context, mouse, keyboard, config),
+                const SizedBox(height: 24),
+                _buildGamepadVisualizer(context, gamepad),
+                const SizedBox(height: 24),
+                _buildScreenInfoCard(context),
+              ],
+            ),
           ),
         );
       },
