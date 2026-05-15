@@ -7,12 +7,16 @@ class MouseConfig {
   double acceleration;
   double deadzone;
   bool dualScreen;
+  /// 单屏模式下右摇杆相对灵敏度倍数（相对于 sensitivity），用于精确定位。
+  /// 例如 0.2 表示右摇杆速度为左摇杆的 20%。
+  double rightStickSensitivity;
 
   MouseConfig({
     this.sensitivity = 1.0,
     this.acceleration = 2.0,
     this.deadzone = 0.15,
     this.dualScreen = false,
+    this.rightStickSensitivity = 0.1,
   });
 
   MouseConfig copyWith({
@@ -20,12 +24,14 @@ class MouseConfig {
     double? acceleration,
     double? deadzone,
     bool? dualScreen,
+    double? rightStickSensitivity,
   }) {
     return MouseConfig(
       sensitivity: sensitivity ?? this.sensitivity,
       acceleration: acceleration ?? this.acceleration,
       deadzone: deadzone ?? this.deadzone,
       dualScreen: dualScreen ?? this.dualScreen,
+      rightStickSensitivity: rightStickSensitivity ?? this.rightStickSensitivity,
     );
   }
 
@@ -34,6 +40,7 @@ class MouseConfig {
     'acceleration': acceleration,
     'deadzone': deadzone,
     'dual_screen': dualScreen,
+    'right_stick_sensitivity': rightStickSensitivity,
   };
 
   factory MouseConfig.fromMap(Map<String, dynamic> map) => MouseConfig(
@@ -41,6 +48,7 @@ class MouseConfig {
     acceleration: (map['acceleration'] as num?)?.toDouble() ?? 2.0,
     deadzone: (map['deadzone'] as num?)?.toDouble() ?? 0.15,
     dualScreen: map['dual_screen'] as bool? ?? false,
+    rightStickSensitivity: (map['right_stick_sensitivity'] as num?)?.toDouble() ?? 0.1,
   );
 }
 

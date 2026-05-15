@@ -80,14 +80,14 @@ class MouseService extends ChangeNotifier {
       // Dual-screen mode: each stick controls a different screen
       _handleDualScreenMode(leftX, leftY, rightX, rightY, leftActive, rightActive);
     } else {
-      // Single-screen mode: both sticks control the same cursor
-      double totalX = leftX + rightX;
-      double totalY = leftY + rightY;
-      totalX = totalX.clamp(-1.0, 1.0);
-      totalY = totalY.clamp(-1.0, 1.0);
-
-      if (totalX != 0 || totalY != 0) {
-        _emitMouseMove(totalX, totalY);
+      // Single-screen mode:
+      //   Left stick  → normal speed (for large movements)
+      //   Right stick → slow speed via rightStickSensitivity (for fine positioning)
+      if (leftActive) {
+        _emitMouseMove(leftX, leftY, sensitivityMultiplier: 1.0);
+      }
+      if (rightActive) {
+        _emitMouseMove(rightX, rightY, sensitivityMultiplier: _config.rightStickSensitivity);
       }
     }
   }
@@ -132,7 +132,8 @@ class MouseService extends ChangeNotifier {
   }
 
   /// Apply acceleration curve and emit mouse movement.
-  void _emitMouseMove(double x, double y) {
+  /// [sensitivityMultiplier] scales the final speed; use values < 1.0 for slower movement.
+  void _emitMouseMove(double x, double y, {double sensitivityMultiplier = 1.0}) {
     // Calculate magnitude
     double magnitude = sqrt(x * x + y * y).clamp(0.0, 1.0);
 
@@ -142,8 +143,8 @@ class MouseService extends ChangeNotifier {
     // Calculate direction
     double angle = atan2(y, x);
 
-    // Scale by sensitivity (base speed in pixels per frame)
-    double baseSpeed = 20.0 * _config.sensitivity;
+    // Scale by sensitivity (base speed in pixels per frame) and the per-stick multiplier
+    double baseSpeed = 20.0 * _config.sensitivity * sensitivityMultiplier;
     double speed = accelerated * baseSpeed;
 
     int dx = (speed * cos(angle)).round();

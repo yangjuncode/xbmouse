@@ -86,6 +86,60 @@ class MouseSettingsPage extends StatelessWidget {
                   mouse.updateConfig(newConfig);
                 },
               ),
+
+              // Right stick fine-positioning (single-screen mode only)
+              if (!mouseConfig.dualScreen) ...[
+                const SizedBox(height: 16),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.gamepad, color: AppTheme.accentOrange, size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '单屏模式摇杆说明',
+                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                                  ),
+                                  Text(
+                                    '左摇杆：正常速度大范围移动 · 右摇杆：慢速精确定位',
+                                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildSliderCard(
+                  context,
+                  icon: Icons.ads_click,
+                  title: '右摇杆精确灵敏度',
+                  subtitle: '单屏模式下右摇杆的速度倍率（相对于左摇杆）',
+                  value: mouseConfig.rightStickSensitivity,
+                  min: 0.05,
+                  max: 1.0,
+                  divisions: 19,
+                  displayValue: '${(mouseConfig.rightStickSensitivity * 100).round()}%',
+                  onChanged: (val) {
+                    final newConfig = mouseConfig.copyWith(rightStickSensitivity: val);
+                    config.updateMouseConfig(newConfig);
+                    mouse.updateConfig(newConfig);
+                  },
+                ),
+              ],
+
               const SizedBox(height: 32),
 
               _buildAccelerationPreview(context, mouseConfig),

@@ -99,6 +99,7 @@ sensitivity = ${mouse.sensitivity}
 acceleration = ${mouse.acceleration}
 deadzone = ${mouse.deadzone}
 dual_screen = ${mouse.dualScreen}
+right_stick_sensitivity = ${mouse.rightStickSensitivity}
 
 [buttons]
 a = "${buttons.a}"
