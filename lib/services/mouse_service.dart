@@ -193,8 +193,9 @@ class MouseService extends ChangeNotifier {
     double accelY = pow(magY, _config.acceleration).toDouble() * (y < 0 ? -1 : 1);
 
     // Scale by scrollSpeed (steps/frame at full deflection)
-    _scrollAccX += accelX * _config.scrollSpeed;
-    _scrollAccY += accelY * _config.scrollSpeed;
+    // We multiply by 0.1 to bring it to a more sensible range (1.0 = ~6 steps/sec)
+    _scrollAccX += accelX * _config.scrollSpeed * 0.1;
+    _scrollAccY += accelY * _config.scrollSpeed * 0.1;
 
     int stepsX = _scrollAccX.truncate();
     int stepsY = _scrollAccY.truncate();

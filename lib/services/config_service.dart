@@ -100,6 +100,8 @@ acceleration = ${mouse.acceleration}
 deadzone = ${mouse.deadzone}
 dual_screen = ${mouse.dualScreen}
 right_stick_sensitivity = ${mouse.rightStickSensitivity}
+right_stick_mode = "${mouse.rightStickMode == RightStickMode.scroll ? 'scroll' : 'slow_move'}"
+scroll_speed = ${mouse.scrollSpeed}
 
 [buttons]
 a = "${buttons.a}"

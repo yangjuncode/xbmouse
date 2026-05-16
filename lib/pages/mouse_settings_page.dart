@@ -179,9 +179,9 @@ class MouseSettingsPage extends StatelessWidget {
                     title: '滚动速度',
                     subtitle: '右摇杆滚动模式下每帧最大滚动格数',
                     value: mouseConfig.scrollSpeed,
-                    min: 0.5,
-                    max: 10.0,
-                    divisions: 19,
+                    min: 0.1,
+                    max: 15.0,
+                    divisions: 149,
                     displayValue: mouseConfig.scrollSpeed.toStringAsFixed(1),
                     onChanged: (val) {
                       final newConfig = mouseConfig.copyWith(scrollSpeed: val);

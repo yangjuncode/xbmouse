@@ -245,7 +245,7 @@ static void method_call_handler(FlMethodChannel* channel,
       FlValue* dy_val = fl_value_lookup_string(args, "dy");
       int dx = dx_val ? fl_value_get_int(dx_val) : 0;
       int dy = dy_val ? fl_value_get_int(dy_val) : 0;
-      // REL_WHEEL: positive = scroll up (away from user); negate dy so stick-up scrolls up
+      // REL_WHEEL: positive = scroll up (away from user)
       if (dy != 0) emit_event(mouse_fd, EV_REL, REL_WHEEL, -dy);
       if (dx != 0) emit_event(mouse_fd, EV_REL, REL_HWHEEL, dx);
       emit_syn(mouse_fd);
