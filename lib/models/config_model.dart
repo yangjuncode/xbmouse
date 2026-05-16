@@ -1,15 +1,31 @@
 /// Configuration data models for XBMouse.
 /// Supports serialization to/from TOML format.
 
+/// Right stick behavior in single-screen mode.
+enum RightStickMode {
+  /// Slow-speed precise mouse movement (existing behaviour).
+  slowMove,
+
+  /// Scroll wheel emulation (vertical + horizontal).
+  scroll,
+}
+
 /// Mouse configuration parameters.
 class MouseConfig {
   double sensitivity;
   double acceleration;
   double deadzone;
   bool dualScreen;
+
   /// 单屏模式下右摇杆相对灵敏度倍数（相对于 sensitivity），用于精确定位。
   /// 例如 0.2 表示右摇杆速度为左摇杆的 20%。
   double rightStickSensitivity;
+
+  /// 单屏模式下右摇杆的功能模式。
+  RightStickMode rightStickMode;
+
+  /// 滚动模式下每帧滚动步长（整数格，越大越快）。
+  double scrollSpeed;
 
   MouseConfig({
     this.sensitivity = 1.0,
@@ -17,6 +33,8 @@ class MouseConfig {
     this.deadzone = 0.15,
     this.dualScreen = false,
     this.rightStickSensitivity = 0.1,
+    this.rightStickMode = RightStickMode.slowMove,
+    this.scrollSpeed = 2.0,
   });
 
   MouseConfig copyWith({
@@ -25,13 +43,18 @@ class MouseConfig {
     double? deadzone,
     bool? dualScreen,
     double? rightStickSensitivity,
+    RightStickMode? rightStickMode,
+    double? scrollSpeed,
   }) {
     return MouseConfig(
       sensitivity: sensitivity ?? this.sensitivity,
       acceleration: acceleration ?? this.acceleration,
       deadzone: deadzone ?? this.deadzone,
       dualScreen: dualScreen ?? this.dualScreen,
-      rightStickSensitivity: rightStickSensitivity ?? this.rightStickSensitivity,
+      rightStickSensitivity:
+          rightStickSensitivity ?? this.rightStickSensitivity,
+      rightStickMode: rightStickMode ?? this.rightStickMode,
+      scrollSpeed: scrollSpeed ?? this.scrollSpeed,
     );
   }
 
@@ -41,6 +64,10 @@ class MouseConfig {
     'deadzone': deadzone,
     'dual_screen': dualScreen,
     'right_stick_sensitivity': rightStickSensitivity,
+    'right_stick_mode': rightStickMode == RightStickMode.scroll
+        ? 'scroll'
+        : 'slow_move',
+    'scroll_speed': scrollSpeed,
   };
 
   factory MouseConfig.fromMap(Map<String, dynamic> map) => MouseConfig(
@@ -48,7 +75,12 @@ class MouseConfig {
     acceleration: (map['acceleration'] as num?)?.toDouble() ?? 2.0,
     deadzone: (map['deadzone'] as num?)?.toDouble() ?? 0.15,
     dualScreen: map['dual_screen'] as bool? ?? false,
-    rightStickSensitivity: (map['right_stick_sensitivity'] as num?)?.toDouble() ?? 0.1,
+    rightStickSensitivity:
+        (map['right_stick_sensitivity'] as num?)?.toDouble() ?? 0.1,
+    rightStickMode: (map['right_stick_mode'] as String?) == 'scroll'
+        ? RightStickMode.scroll
+        : RightStickMode.slowMove,
+    scrollSpeed: (map['scroll_speed'] as num?)?.toDouble() ?? 3.0,
   );
 }
 
@@ -57,10 +89,7 @@ class KeyMappingEntry {
   final String gamepadButton;
   String keyAction; // Key name, "BTN_LEFT", "@SWITCH_SCREEN", etc.
 
-  KeyMappingEntry({
-    required this.gamepadButton,
-    required this.keyAction,
-  });
+  KeyMappingEntry({required this.gamepadButton, required this.keyAction});
 
   /// Check if this is a mouse button action
   bool get isMouseButton => keyAction.startsWith('BTN_');
@@ -124,63 +153,118 @@ class ButtonMappings {
   /// Get mapping by gamepad button name
   String getMapping(String buttonName) {
     switch (buttonName) {
-      case 'a': return a;
-      case 'b': return b;
-      case 'x': return x;
-      case 'y': return y;
-      case 'lb': return lb;
-      case 'rb': return rb;
-      case 'start': return start;
-      case 'back': return back;
-      case 'lstick': return lstick;
-      case 'rstick': return rstick;
-      case 'dpad_up': return dpadUp;
-      case 'dpad_down': return dpadDown;
-      case 'dpad_left': return dpadLeft;
-      case 'dpad_right': return dpadRight;
-      case 'lt': return lt;
-      case 'rt': return rt;
-      default: return '';
+      case 'a':
+        return a;
+      case 'b':
+        return b;
+      case 'x':
+        return x;
+      case 'y':
+        return y;
+      case 'lb':
+        return lb;
+      case 'rb':
+        return rb;
+      case 'start':
+        return start;
+      case 'back':
+        return back;
+      case 'lstick':
+        return lstick;
+      case 'rstick':
+        return rstick;
+      case 'dpad_up':
+        return dpadUp;
+      case 'dpad_down':
+        return dpadDown;
+      case 'dpad_left':
+        return dpadLeft;
+      case 'dpad_right':
+        return dpadRight;
+      case 'lt':
+        return lt;
+      case 'rt':
+        return rt;
+      default:
+        return '';
     }
   }
 
   /// Set mapping by gamepad button name
   void setMapping(String buttonName, String keyAction) {
     switch (buttonName) {
-      case 'a': a = keyAction; break;
-      case 'b': b = keyAction; break;
-      case 'x': x = keyAction; break;
-      case 'y': y = keyAction; break;
-      case 'lb': lb = keyAction; break;
-      case 'rb': rb = keyAction; break;
-      case 'start': start = keyAction; break;
-      case 'back': back = keyAction; break;
-      case 'lstick': lstick = keyAction; break;
-      case 'rstick': rstick = keyAction; break;
-      case 'dpad_up': dpadUp = keyAction; break;
-      case 'dpad_down': dpadDown = keyAction; break;
-      case 'dpad_left': dpadLeft = keyAction; break;
-      case 'dpad_right': dpadRight = keyAction; break;
-      case 'lt': lt = keyAction; break;
-      case 'rt': rt = keyAction; break;
+      case 'a':
+        a = keyAction;
+        break;
+      case 'b':
+        b = keyAction;
+        break;
+      case 'x':
+        x = keyAction;
+        break;
+      case 'y':
+        y = keyAction;
+        break;
+      case 'lb':
+        lb = keyAction;
+        break;
+      case 'rb':
+        rb = keyAction;
+        break;
+      case 'start':
+        start = keyAction;
+        break;
+      case 'back':
+        back = keyAction;
+        break;
+      case 'lstick':
+        lstick = keyAction;
+        break;
+      case 'rstick':
+        rstick = keyAction;
+        break;
+      case 'dpad_up':
+        dpadUp = keyAction;
+        break;
+      case 'dpad_down':
+        dpadDown = keyAction;
+        break;
+      case 'dpad_left':
+        dpadLeft = keyAction;
+        break;
+      case 'dpad_right':
+        dpadRight = keyAction;
+        break;
+      case 'lt':
+        lt = keyAction;
+        break;
+      case 'rt':
+        rt = keyAction;
+        break;
     }
   }
 
   Map<String, String> toButtonsMap() => {
-    'a': a, 'b': b, 'x': x, 'y': y,
-    'lb': lb, 'rb': rb,
-    'start': start, 'back': back,
-    'lstick': lstick, 'rstick': rstick,
+    'a': a,
+    'b': b,
+    'x': x,
+    'y': y,
+    'lb': lb,
+    'rb': rb,
+    'start': start,
+    'back': back,
+    'lstick': lstick,
+    'rstick': rstick,
   };
 
   Map<String, String> toDpadMap() => {
-    'up': dpadUp, 'down': dpadDown,
-    'left': dpadLeft, 'right': dpadRight,
+    'up': dpadUp,
+    'down': dpadDown,
+    'left': dpadLeft,
+    'right': dpadRight,
   };
 
-  Map<String, String> toTriggersMap() => {
-    'lt': lt, 'rt': rt,
-  };
+  Map<String, String> toTriggersMap() => {'lt': lt, 'rt': rt};
 
   factory ButtonMappings.fromMaps({
     Map<String, dynamic>? buttons,
@@ -233,10 +317,7 @@ class AppConfig {
   bool startEnabled;
   bool startMinimized;
 
-  AppConfig({
-    this.startEnabled = true,
-    this.startMinimized = false,
-  });
+  AppConfig({this.startEnabled = true, this.startMinimized = false});
 
   Map<String, dynamic> toMap() => {
     'start_enabled': startEnabled,
@@ -255,27 +336,20 @@ class XBMouseConfig {
   ButtonMappings buttons;
   AppConfig app;
 
-  XBMouseConfig({
-    MouseConfig? mouse,
-    ButtonMappings? buttons,
-    AppConfig? app,
-  })  : mouse = mouse ?? MouseConfig(),
-        buttons = buttons ?? ButtonMappings(),
-        app = app ?? AppConfig();
+  XBMouseConfig({MouseConfig? mouse, ButtonMappings? buttons, AppConfig? app})
+    : mouse = mouse ?? MouseConfig(),
+      buttons = buttons ?? ButtonMappings(),
+      app = app ?? AppConfig();
 
   factory XBMouseConfig.fromMap(Map<String, dynamic> map) {
     return XBMouseConfig(
-      mouse: MouseConfig.fromMap(
-        (map['mouse'] as Map<String, dynamic>?) ?? {},
-      ),
+      mouse: MouseConfig.fromMap((map['mouse'] as Map<String, dynamic>?) ?? {}),
       buttons: ButtonMappings.fromMaps(
         buttons: (map['buttons'] as Map<String, dynamic>?),
         dpad: (map['dpad'] as Map<String, dynamic>?),
         triggers: (map['triggers'] as Map<String, dynamic>?),
       ),
-      app: AppConfig.fromMap(
-        (map['app'] as Map<String, dynamic>?) ?? {},
-      ),
+      app: AppConfig.fromMap((map['app'] as Map<String, dynamic>?) ?? {}),
     );
   }
 }

@@ -23,6 +23,10 @@ class MouseService extends ChangeNotifier {
   // Track which stick was last active for dual-screen mode
   int _lastActiveStick = -1; // -1=none, 0=left, 1=right
 
+  // Fractional scroll accumulators (to allow sub-integer scroll steps per frame)
+  double _scrollAccX = 0.0;
+  double _scrollAccY = 0.0;
+
   MouseService(this._uinput, this._gamepad, this._screen);
 
   bool get isEnabled => _enabled;
@@ -82,12 +86,20 @@ class MouseService extends ChangeNotifier {
     } else {
       // Single-screen mode:
       //   Left stick  → normal speed (for large movements)
-      //   Right stick → slow speed via rightStickSensitivity (for fine positioning)
+      //   Right stick → depends on rightStickMode
       if (leftActive) {
         _emitMouseMove(leftX, leftY, sensitivityMultiplier: 1.0);
       }
       if (rightActive) {
-        _emitMouseMove(rightX, rightY, sensitivityMultiplier: _config.rightStickSensitivity);
+        if (_config.rightStickMode == RightStickMode.scroll) {
+          _emitScroll(rightX, rightY);
+        } else {
+          _emitMouseMove(rightX, rightY, sensitivityMultiplier: _config.rightStickSensitivity);
+        }
+      } else {
+        // Reset accumulators when stick is released
+        _scrollAccX = 0.0;
+        _scrollAccY = 0.0;
       }
     }
   }
@@ -152,6 +164,28 @@ class MouseService extends ChangeNotifier {
 
     if (dx != 0 || dy != 0) {
       _uinput.moveMouse(dx, dy);
+    }
+  }
+
+  /// Accumulate and emit scroll wheel events from right stick input.
+  void _emitScroll(double x, double y) {
+    // Apply acceleration to give a feel of proportional scroll speed
+    double magX = x.abs();
+    double magY = y.abs();
+    double accelX = pow(magX, _config.acceleration).toDouble() * (x < 0 ? -1 : 1);
+    double accelY = pow(magY, _config.acceleration).toDouble() * (y < 0 ? -1 : 1);
+
+    // Scale by scrollSpeed (steps/frame at full deflection)
+    _scrollAccX += accelX * _config.scrollSpeed;
+    _scrollAccY += accelY * _config.scrollSpeed;
+
+    int stepsX = _scrollAccX.truncate();
+    int stepsY = _scrollAccY.truncate();
+    _scrollAccX -= stepsX;
+    _scrollAccY -= stepsY;
+
+    if (stepsX != 0 || stepsY != 0) {
+      _uinput.scrollMouse(stepsX, stepsY);
     }
   }
 

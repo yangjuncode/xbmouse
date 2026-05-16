@@ -42,6 +42,18 @@ class UinputService {
     }
   }
 
+  /// Scroll mouse wheel by (dx, dy) steps.
+  /// dy > 0 = scroll down, dy < 0 = scroll up (native layer inverts for REL_WHEEL convention).
+  /// dx > 0 = scroll right, dx < 0 = scroll left.
+  Future<void> scrollMouse(int dx, int dy) async {
+    if (!_initialized) return;
+    try {
+      await _channel.invokeMethod('scrollMouse', {'dx': dx, 'dy': dy});
+    } catch (e) {
+      // Silently fail for scroll to avoid log spam
+    }
+  }
+
   /// Move mouse to absolute position (x, y) across all screens.
   Future<void> moveMouseAbsolute(int x, int y) async {
     if (!_initialized) return;

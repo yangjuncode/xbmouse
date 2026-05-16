@@ -72,6 +72,8 @@ static int create_virtual_mouse() {
   ioctl(fd, UI_SET_EVBIT, EV_REL);
   ioctl(fd, UI_SET_RELBIT, REL_X);
   ioctl(fd, UI_SET_RELBIT, REL_Y);
+  ioctl(fd, UI_SET_RELBIT, REL_WHEEL);
+  ioctl(fd, UI_SET_RELBIT, REL_HWHEEL);
 
   // Enable key events (mouse buttons)
   ioctl(fd, UI_SET_EVBIT, EV_KEY);
@@ -228,6 +230,24 @@ static void method_call_handler(FlMethodChannel* channel,
       int dy = fl_value_get_int(fl_value_lookup_string(args, "dy"));
       emit_event(mouse_fd, EV_REL, REL_X, dx);
       emit_event(mouse_fd, EV_REL, REL_Y, dy);
+      emit_syn(mouse_fd);
+      response = FL_METHOD_RESPONSE(
+          fl_method_success_response_new(fl_value_new_bool(true)));
+    } else {
+      response = FL_METHOD_RESPONSE(
+          fl_method_success_response_new(fl_value_new_bool(false)));
+    }
+
+  } else if (strcmp(method, "scrollMouse") == 0) {
+    if (mouse_fd >= 0 && args != nullptr &&
+        fl_value_get_type(args) == FL_VALUE_TYPE_MAP) {
+      FlValue* dx_val = fl_value_lookup_string(args, "dx");
+      FlValue* dy_val = fl_value_lookup_string(args, "dy");
+      int dx = dx_val ? fl_value_get_int(dx_val) : 0;
+      int dy = dy_val ? fl_value_get_int(dy_val) : 0;
+      // REL_WHEEL: positive = scroll up (away from user); negate dy so stick-up scrolls up
+      if (dy != 0) emit_event(mouse_fd, EV_REL, REL_WHEEL, -dy);
+      if (dx != 0) emit_event(mouse_fd, EV_REL, REL_HWHEEL, dx);
       emit_syn(mouse_fd);
       response = FL_METHOD_RESPONSE(
           fl_method_success_response_new(fl_value_new_bool(true)));

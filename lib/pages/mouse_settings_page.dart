@@ -92,7 +92,7 @@ class MouseSettingsPage extends StatelessWidget {
                 },
               ),
 
-              // Right stick fine-positioning (single-screen mode only)
+              // Right stick settings (single-screen mode only)
               if (!mouseConfig.dualScreen) ...[
                 const SizedBox(height: 16),
                 Card(
@@ -110,11 +110,13 @@ class MouseSettingsPage extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text(
-                                    '单屏模式摇杆说明',
+                                    '单屏模式 · 右摇杆功能',
                                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                                   ),
                                   Text(
-                                    '左摇杆：正常速度大范围移动 · 右摇杆：慢速精确定位',
+                                    mouseConfig.rightStickMode == RightStickMode.scroll
+                                        ? '左摇杆：正常移动 · 右摇杆：滚轮滚动'
+                                        : '左摇杆：正常速度大范围移动 · 右摇杆：慢速精确定位',
                                     style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                                   ),
                                 ],
@@ -122,27 +124,72 @@ class MouseSettingsPage extends StatelessWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+                        // Mode selector
+                        SegmentedButton<RightStickMode>(
+                          segments: const [
+                            ButtonSegment(
+                              value: RightStickMode.slowMove,
+                              icon: Icon(Icons.ads_click, size: 18),
+                              label: Text('慢速移动'),
+                            ),
+                            ButtonSegment(
+                              value: RightStickMode.scroll,
+                              icon: Icon(Icons.mouse, size: 18),
+                              label: Text('滚动模式'),
+                            ),
+                          ],
+                          selected: {mouseConfig.rightStickMode},
+                          onSelectionChanged: (Set<RightStickMode> s) {
+                            final newConfig = mouseConfig.copyWith(rightStickMode: s.first);
+                            config.updateMouseConfig(newConfig);
+                            mouse.updateConfig(newConfig);
+                          },
+                        ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                _buildSliderCard(
-                  context,
-                  icon: Icons.ads_click,
-                  title: '右摇杆精确灵敏度',
-                  subtitle: '单屏模式下右摇杆的速度倍率（相对于左摇杆）',
-                  value: mouseConfig.rightStickSensitivity,
-                  min: 0.05,
-                  max: 1.0,
-                  divisions: 19,
-                  displayValue: '${(mouseConfig.rightStickSensitivity * 100).round()}%',
-                  onChanged: (val) {
-                    final newConfig = mouseConfig.copyWith(rightStickSensitivity: val);
-                    config.updateMouseConfig(newConfig);
-                    mouse.updateConfig(newConfig);
-                  },
-                ),
+                // Slow-move sensitivity (only in slowMove mode)
+                if (mouseConfig.rightStickMode == RightStickMode.slowMove) ...[
+                  const SizedBox(height: 16),
+                  _buildSliderCard(
+                    context,
+                    icon: Icons.ads_click,
+                    title: '右摇杆精确灵敏度',
+                    subtitle: '单屏慢速模式下右摇杆速度倍率（相对于左摇杆）',
+                    value: mouseConfig.rightStickSensitivity,
+                    min: 0.05,
+                    max: 1.0,
+                    divisions: 19,
+                    displayValue: '${(mouseConfig.rightStickSensitivity * 100).round()}%',
+                    onChanged: (val) {
+                      final newConfig = mouseConfig.copyWith(rightStickSensitivity: val);
+                      config.updateMouseConfig(newConfig);
+                      mouse.updateConfig(newConfig);
+                    },
+                  ),
+                ],
+                // Scroll speed (only in scroll mode)
+                if (mouseConfig.rightStickMode == RightStickMode.scroll) ...[
+                  const SizedBox(height: 16),
+                  _buildSliderCard(
+                    context,
+                    icon: Icons.mouse,
+                    title: '滚动速度',
+                    subtitle: '右摇杆滚动模式下每帧最大滚动格数',
+                    value: mouseConfig.scrollSpeed,
+                    min: 0.5,
+                    max: 10.0,
+                    divisions: 19,
+                    displayValue: mouseConfig.scrollSpeed.toStringAsFixed(1),
+                    onChanged: (val) {
+                      final newConfig = mouseConfig.copyWith(scrollSpeed: val);
+                      config.updateMouseConfig(newConfig);
+                      mouse.updateConfig(newConfig);
+                    },
+                  ),
+                ],
               ],
 
               const SizedBox(height: 32),

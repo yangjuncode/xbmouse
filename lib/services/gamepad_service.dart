@@ -8,6 +8,7 @@ import '../models/gamepad_state.dart';
 
 class GamepadService extends ChangeNotifier {
   StreamSubscription<NormalizedGamepadEvent>? _subscription;
+  Timer? _refreshTimer;
   final GamepadState state = GamepadState();
   bool _listening = false;
 
@@ -20,11 +21,28 @@ class GamepadService extends ChangeNotifier {
     _listening = true;
 
     await _refreshConnectedGamepads();
+    _startRefreshTimer();
     _subscription = Gamepads.normalizedEvents.listen(_handleEvent);
     notifyListeners();
   }
 
-  Future<void> _refreshConnectedGamepads() async {
+  void _startRefreshTimer() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (!_listening || state.connected) {
+        _refreshTimer?.cancel();
+        _refreshTimer = null;
+        return;
+      }
+
+      final changed = await _refreshConnectedGamepads();
+      if (changed) {
+        notifyListeners();
+      }
+    });
+  }
+
+  Future<bool> _refreshConnectedGamepads() async {
     try {
       final gamepads = await Gamepads.list();
       final connected = gamepads.where((gamepad) {
@@ -33,14 +51,16 @@ class GamepadService extends ChangeNotifier {
       }).toList();
 
       if (connected.isEmpty) {
-        return;
+        return false;
       }
 
       final gamepad = connected.first;
       state.connected = true;
       state.gamepadInfo = GamepadInfo(id: gamepad.id, name: gamepad.name);
+      return true;
     } catch (_) {
       // Keep waiting for live events if enumeration fails.
+      return false;
     }
   }
 
@@ -53,7 +73,9 @@ class GamepadService extends ChangeNotifier {
   /// Stop listening to gamepad events.
   void stopListening() {
     _subscription?.cancel();
+    _refreshTimer?.cancel();
     _subscription = null;
+    _refreshTimer = null;
     _listening = false;
     state.reset();
     notifyListeners();
@@ -72,6 +94,8 @@ class GamepadService extends ChangeNotifier {
         id: event.gamepadId,
         name: event.gamepadId,
       );
+      _refreshTimer?.cancel();
+      _refreshTimer = null;
     }
 
     // Map the key/axis from the event
