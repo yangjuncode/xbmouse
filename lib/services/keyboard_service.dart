@@ -15,6 +15,10 @@ class KeyboardService extends ChangeNotifier {
   ButtonMappings _mappings = ButtonMappings();
   bool _enabled = false;
 
+  /// Called when the @TOGGLE_RIGHT_STICK_MODE action fires.
+  /// The consumer (main.dart) sets this to toggle MouseService + persist config.
+  VoidCallback? onToggleRightStickMode;
+
   // Track button states for edge detection (press/release)
   final Map<String, bool> _previousStates = {};
 
@@ -89,6 +93,11 @@ class KeyboardService extends ChangeNotifier {
     // Handle special actions
     if (action == '@SWITCH_SCREEN') {
       _screen.switchToNextScreen();
+      return;
+    }
+
+    if (action == '@TOGGLE_RIGHT_STICK_MODE') {
+      onToggleRightStickMode?.call();
       return;
     }
 

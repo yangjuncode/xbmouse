@@ -37,6 +37,23 @@ class MouseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 获取当前右摇杆模式（供 UI 读取）。
+  RightStickMode get rightStickMode => _config.rightStickMode;
+
+  /// 在单屏模式下切换右摇杆功能（慢速移动 ↔ 滚动），并返回新配置。
+  MouseConfig toggleRightStickMode() {
+    final newMode = _config.rightStickMode == RightStickMode.scroll
+        ? RightStickMode.slowMove
+        : RightStickMode.scroll;
+    _config = _config.copyWith(rightStickMode: newMode);
+    _dualScreenMode = _config.dualScreen;
+    // Reset scroll accumulators on mode change
+    _scrollAccX = 0.0;
+    _scrollAccY = 0.0;
+    notifyListeners();
+    return _config;
+  }
+
   /// Start the mouse movement polling loop.
   void start() {
     if (_enabled) return;

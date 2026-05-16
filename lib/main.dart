@@ -113,6 +113,13 @@ class _XBMouseAppState extends State<XBMouseApp> with WindowListener {
     mouseService.updateConfig(configService.mouseConfig);
     keyboardService.updateMappings(configService.buttonMappings);
 
+    // Wire LB @TOGGLE_RIGHT_STICK_MODE: toggle right stick mode and persist config
+    keyboardService.onToggleRightStickMode = () {
+      if (configService.mouseConfig.dualScreen) return; // no-op in dual-screen mode
+      final newConfig = mouseService.toggleRightStickMode();
+      configService.updateMouseConfig(newConfig);
+    };
+
     // Start gamepad listening
     await gamepadService.startListening();
 

@@ -334,6 +334,7 @@ class LinuxKeyCodes {
   static String displayName(String keyAction) {
     if (keyAction.isEmpty) return '(未分配)';
     if (keyAction == '@SWITCH_SCREEN') return '切换屏幕';
+    if (keyAction == '@TOGGLE_RIGHT_STICK_MODE') return '切换右摇杆模式';
     if (keyAction == 'BTN_LEFT') return '鼠标左键';
     if (keyAction == 'BTN_RIGHT') return '鼠标右键';
     if (keyAction == 'BTN_MIDDLE') return '鼠标中键';

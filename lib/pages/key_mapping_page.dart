@@ -206,7 +206,7 @@ class KeyMappingPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '特殊值: BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, @SWITCH_SCREEN',
+              '特殊值: BTN_LEFT, BTN_RIGHT, BTN_MIDDLE, @SWITCH_SCREEN, @TOGGLE_RIGHT_STICK_MODE',
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 11),
             ),
             const SizedBox(height: 8),
@@ -224,6 +224,8 @@ class KeyMappingPage extends StatelessWidget {
                 _buildQuickPick(controller, 'Control_L'),
                 _buildQuickPick(controller, 'Alt_L'),
                 _buildQuickPick(controller, 'Super_L'),
+                _buildQuickPick(controller, '@SWITCH_SCREEN'),
+                _buildQuickPick(controller, '@TOGGLE_RIGHT_STICK_MODE'),
               ],
             ),
           ],
