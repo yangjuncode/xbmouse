@@ -6,61 +6,143 @@ import 'package:flutter/foundation.dart';
 import 'package:gamepads/gamepads.dart';
 import '../models/gamepad_state.dart';
 
+typedef GamepadListProvider = Future<List<GamepadDeviceSnapshot>> Function();
+typedef NormalizedGamepadEventsProvider =
+    Stream<NormalizedGamepadEvent> Function();
+
+@visibleForTesting
+class GamepadDeviceSnapshot {
+  const GamepadDeviceSnapshot({
+    required this.id,
+    required this.name,
+    this.dispose,
+  });
+
+  final String id;
+  final String name;
+  final FutureOr<void> Function()? dispose;
+}
+
 class GamepadService extends ChangeNotifier {
+  GamepadService({
+    GamepadListProvider? listGamepads,
+    NormalizedGamepadEventsProvider? normalizedEvents,
+    Duration disconnectedRefreshInterval = const Duration(seconds: 2),
+    Duration connectedRefreshInterval = const Duration(seconds: 10),
+  }) : _listGamepads = listGamepads ?? _listGamepadSnapshots,
+       _normalizedEvents =
+           normalizedEvents ?? (() => Gamepads.normalizedEvents),
+       _disconnectedRefreshInterval = disconnectedRefreshInterval,
+       _connectedRefreshInterval = connectedRefreshInterval;
+
   StreamSubscription<NormalizedGamepadEvent>? _subscription;
   Timer? _refreshTimer;
+  final GamepadListProvider _listGamepads;
+  final NormalizedGamepadEventsProvider _normalizedEvents;
+  final Duration _disconnectedRefreshInterval;
+  final Duration _connectedRefreshInterval;
   final GamepadState state = GamepadState();
   bool _listening = false;
+  bool _refreshInProgress = false;
 
   bool get isListening => _listening;
   bool get isConnected => state.connected;
+
+  static Future<List<GamepadDeviceSnapshot>> _listGamepadSnapshots() async {
+    final gamepads = await Gamepads.list();
+    return gamepads
+        .map(
+          (gamepad) => GamepadDeviceSnapshot(
+            id: gamepad.id,
+            name: gamepad.name,
+            dispose: gamepad.dispose,
+          ),
+        )
+        .toList();
+  }
 
   /// Start listening to gamepad events.
   Future<void> startListening() async {
     if (_listening) return;
     _listening = true;
 
-    await _refreshConnectedGamepads();
+    await refreshConnectedGamepads();
     _startRefreshTimer();
-    _subscription = Gamepads.normalizedEvents.listen(_handleEvent);
+    _subscription = _normalizedEvents().listen(_handleEvent);
     notifyListeners();
   }
 
   void _startRefreshTimer() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
-      if (!_listening || state.connected) {
-        _refreshTimer?.cancel();
-        _refreshTimer = null;
-        return;
-      }
+    _refreshTimer = Timer(
+      state.connected
+          ? _connectedRefreshInterval
+          : _disconnectedRefreshInterval,
+      _refreshConnectedGamepadsAndNotify,
+    );
+  }
 
-      final changed = await _refreshConnectedGamepads();
+  Future<void> _refreshConnectedGamepadsAndNotify() async {
+    if (!_listening || _refreshInProgress) return;
+
+    _refreshInProgress = true;
+    try {
+      final changed = await refreshConnectedGamepads();
       if (changed) {
         notifyListeners();
       }
-    });
+    } finally {
+      _refreshInProgress = false;
+      if (_listening) {
+        _startRefreshTimer();
+      }
+    }
   }
 
-  Future<bool> _refreshConnectedGamepads() async {
+  @visibleForTesting
+  Future<bool> refreshConnectedGamepads() async {
+    List<GamepadDeviceSnapshot> gamepads;
     try {
-      final gamepads = await Gamepads.list();
+      gamepads = await _listGamepads();
+    } catch (_) {
+      // Keep the last known state if enumeration fails temporarily.
+      return false;
+    }
+
+    try {
       final connected = gamepads.where((gamepad) {
         return !_isVirtualGamepadId(gamepad.id) &&
             !_isVirtualGamepadId(gamepad.name);
       }).toList();
 
       if (connected.isEmpty) {
-        return false;
+        if (!state.connected) return false;
+
+        state.reset();
+        return true;
       }
 
       final gamepad = connected.first;
+      final previousInfo = state.gamepadInfo;
+      final sameGamepad = state.connected && previousInfo?.id == gamepad.id;
+
+      if (sameGamepad) {
+        if (previousInfo?.name == gamepad.name) return false;
+
+        state.gamepadInfo = GamepadInfo(id: gamepad.id, name: gamepad.name);
+        return true;
+      }
+
+      state.reset();
       state.connected = true;
       state.gamepadInfo = GamepadInfo(id: gamepad.id, name: gamepad.name);
       return true;
-    } catch (_) {
-      // Keep waiting for live events if enumeration fails.
-      return false;
+    } finally {
+      await Future.wait(
+        gamepads.map((gamepad) async {
+          await gamepad.dispose?.call();
+        }),
+      );
     }
   }
 
@@ -94,8 +176,7 @@ class GamepadService extends ChangeNotifier {
         id: event.gamepadId,
         name: event.gamepadId,
       );
-      _refreshTimer?.cancel();
-      _refreshTimer = null;
+      _startRefreshTimer();
     }
 
     // Map the key/axis from the event
